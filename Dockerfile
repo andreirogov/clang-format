@@ -16,7 +16,10 @@ RUN mv libcxx llvm/projects
 
 # Build
 WORKDIR llvm/build
-RUN cmake -GNinja -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_LIBCXX=ON ..
+RUN cmake -GNinja \
+  -DCMAKE_BUILD_TYPE=MinSizeRel \
+  -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi" \
+  -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_LIBCXX=ON ..
 RUN ninja clang-format
 
 # Install

@@ -17,6 +17,7 @@ WORKDIR /build/llvm-project
 
 # Build
 WORKDIR llvm/build
+# https://llvm.org/docs/CMake.html#options-and-variables
 RUN cmake -GNinja .. \
   -DCMAKE_BUILD_TYPE=MinSizeRel \
   -DLLVM_ENABLE_PROJECTS="clang" \

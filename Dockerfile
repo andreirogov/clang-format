@@ -1,6 +1,5 @@
 # Pass `--build-arg ALPINE_TAG=latest` for the latest alpine build
-ARG ALPINE_TAG
-ENV ALPINE_TAG ${ALPINE_TAG:-latest}
+ARG ALPINE_TAG=latest
 
 # Build clang
 FROM alpine:${ALPINE_TAG} as clang-format-build
@@ -9,8 +8,7 @@ FROM alpine:${ALPINE_TAG} as clang-format-build
 RUN apk update && apk add git build-base ninja cmake python3
 
 # Pass `--build-arg LLVM_TAG=main` for the latest llvm commit
-ARG LLVM_TAG
-ENV LLVM_TAG ${LLVM_TAG:-main}
+ARG LLVM_TAG=main
 
 # Download and setup
 WORKDIR /build

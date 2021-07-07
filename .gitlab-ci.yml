@@ -1,4 +1,3 @@
-
 variables:
   # GitLab group of members who can review/test/approve merge request
   CI_REGISTRY_IMAGE: "docker.io/arogov/clang-format"
@@ -16,18 +15,22 @@ build:latest:
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination "$CI_REGISTRY_IMAGE:latest"
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=latest --build-arg LLVM_TAG=main --destination "$CI_REGISTRY_IMAGE:latest"
 
-.build:
+build:tag:
   stage: build
+  rules:
+    - if: $CI_COMMIT_TAG
   tags:
+    # run job if pushed a tag
     - shared
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  variables:
+    # Alpine build version
+    ALPINE_VER: "3.8"
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg LLVM_TAG=$CI_COMMIT_TAG --destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
-  rules:
-    - if: $CI_COMMIT_TAG
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_VER --build-arg LLVM_TAG=llvmorg-$CI_COMMIT_TAG --destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"

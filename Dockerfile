@@ -1,4 +1,9 @@
-FROM alpine:latest as clang-format-build
+# Pass `--build-arg ALPINE_TAG=latest` for the latest alpine build
+ARG ALPINE_TAG
+ENV ALPINE_TAG ${ALPINE_TAG:-latest}
+
+# Build clang
+FROM alpine:${ALPINE_TAG} as clang-format-build
 
 # Build dependencies
 RUN apk update && apk add git build-base ninja cmake python3
@@ -11,19 +16,17 @@ ENV LLVM_TAG ${LLVM_TAG:-main}
 WORKDIR /build
 RUN git clone --branch ${LLVM_TAG} --depth 1 https://github.com/llvm/llvm-project.git
 WORKDIR /build/llvm-project
-RUN mv clang llvm/tools
-RUN mv libcxx llvm/projects
 
 # Build
 WORKDIR llvm/build
-RUN cmake -GNinja \
+RUN cmake -GNinja .. \
   -DCMAKE_BUILD_TYPE=MinSizeRel \
-  -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi" \
-  -DLLVM_BUILD_STATIC=ON -DLLVM_ENABLE_LIBCXX=ON ..
+  -DLLVM_ENABLE_PROJECTS="clang" \
+  -DCMAKE_C_FLAGS="-static-libgcc" -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++"
 RUN ninja clang-format
 
-# Install
-FROM alpine:latest
+# Install clang only
+FROM alpine:${ALPINE_TAG}
 
 COPY --from=clang-format-build /build/llvm-project/llvm/build/bin/clang-format /usr/bin
 

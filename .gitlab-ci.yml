@@ -33,7 +33,9 @@ build:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     # Build
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_TAG --build-arg LLVM_TAG=$LLVM_TAG \ 
+    - >
+      /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile 
+        --build-arg ALPINE_TAG=$ALPINE_TAG --build-arg LLVM_TAG=$LLVM_TAG 
         --destination "$CI_REGISTRY_REPO:$CI_COMMIT_TAG" --destination "$CI_REGISTRY_REPO:latest"
 
 test:version:

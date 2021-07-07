@@ -1,10 +1,26 @@
-variables:
-  # GitLab group of members who can review/test/approve merge request
-  CI_REGISTRY_IMAGE: "docker.io/arogov/clang-format"
+workflow:
+  rules:
+    # run job if pushed a tag
+    - if: '$CI_COMMIT_TAG'
+    # run job if pushed to default branch
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
-build:latest:
+stages:
+  - build
+  - test
+
+variables:
+  # CI Registry Repository
+  CI_REGISTRY_REPO: "docker.io/arogov/clang-format"
+  # Shell print color codes
+  OK_COL_CODE: '\e[0m'
+  ERR_COL_CODE: '\e[31m'
+
+build:
   stage: build
   rules:
+    # run job if pushed a tag
+    - if: '$CI_COMMIT_TAG'
     # run job if pushed to default branch
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   tags:
@@ -15,22 +31,64 @@ build:latest:
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=latest --build-arg LLVM_TAG=main --destination "$CI_REGISTRY_IMAGE:latest"
+    - |-
+      # Define image build parameters
+      if [ "$CI_COMMIT_TAG" ]; then
+        # LLVM-compatible Alpine version
+        ALPINE_TAG="3.8"
+        # LLVM version
+        LLVM_TAG="llvmorg-$CI_COMMIT_TAG"
+        # CI Registry Repository Image
+        CI_REGISTRY_REPO_IMAGE="$CI_REGISTRY_REPO:$CI_COMMIT_TAG"
+      else
+        # LLVM-compatible Alpine version
+        ALPINE_TAG="latest"
+        # LLVM version
+        LLVM_TAG="main"
+        # CI Registry Repository Image
+        CI_REGISTRY_REPO_IMAGE="$CI_REGISTRY_REPO:latest"
+      fi
+      # Build
+      /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_TAG --build-arg LLVM_TAG=$LLVM_TAG --destination $CI_REGISTRY_REPO_IMAGE
 
-build:tag:
-  stage: build
+test-tag:version:
+  stage: test
   rules:
-    - if: $CI_COMMIT_TAG
-  tags:
     # run job if pushed a tag
+    - if: '$CI_COMMIT_TAG'
+  tags:
     - shared
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: "$CI_REGISTRY_REPO:$CI_COMMIT_TAG"
     entrypoint: [""]
-  variables:
-    # Alpine build version
-    ALPINE_VER: "3.8"
   script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_VER --build-arg LLVM_TAG=llvmorg-$CI_COMMIT_TAG --destination "$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG"
+    - |-
+      if ! clang-format --version; then
+        echo -e "${ERR_COL_CODE}Error running clang-format${OK_COL_CODE}"
+        exit 1
+      fi
+      if ! clang-format --version | grep -qE "version $CI_COMMIT_TAG "; then
+        echo -e "${ERR_COL_CODE}Invalid clang-format version${OK_COL_CODE}"
+        exit 1
+      fi
+
+test-latest:version:
+  stage: test
+  rules:
+    # run job if pushed to default branch
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  tags:
+    - shared
+  image:
+    name: "$CI_REGISTRY_REPO:latest"
+    entrypoint: [""]
+  script:
+    - |-
+      if ! clang-format --version; then
+        echo -e "${ERR_COL_CODE}Error running clang-format${OK_COL_CODE}"
+        exit 1
+      fi
+      if ! clang-format --version | grep -qE "version [0-9]+\.[0-9]+\.[0-9]+ "; then
+        echo -e "${ERR_COL_CODE}Invalid clang-format version${OK_COL_CODE}"
+        exit 1
+      fi

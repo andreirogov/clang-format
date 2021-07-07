@@ -2,8 +2,6 @@ workflow:
   rules:
     # run job if pushed a tag
     - if: '$CI_COMMIT_TAG'
-    # run job if pushed to default branch
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 stages:
   - build
@@ -21,37 +19,25 @@ build:
   rules:
     # run job if pushed a tag
     - if: '$CI_COMMIT_TAG'
-    # run job if pushed to default branch
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   tags:
     - shared
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  variables:
+    # LLVM-compatible Alpine version
+    ALPINE_TAG: "3.10"
+    # LLVM version
+    LLVM_TAG: "llvmorg-$CI_COMMIT_TAG"
   script:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - |-
-      # Define image build parameters
-      if [ "$CI_COMMIT_TAG" ]; then
-        # LLVM-compatible Alpine version
-        ALPINE_TAG="3.10"
-        # LLVM version
-        LLVM_TAG="llvmorg-$CI_COMMIT_TAG"
-        # CI Registry Repository Image
-        CI_REGISTRY_REPO_IMAGE="$CI_REGISTRY_REPO:$CI_COMMIT_TAG"
-      else
-        # LLVM-compatible Alpine version
-        ALPINE_TAG="latest"
-        # LLVM version
-        LLVM_TAG="main"
-        # CI Registry Repository Image
-        CI_REGISTRY_REPO_IMAGE="$CI_REGISTRY_REPO:latest"
-      fi
       # Build
-      /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_TAG --build-arg LLVM_TAG=$LLVM_TAG --destination $CI_REGISTRY_REPO_IMAGE
+      /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --build-arg ALPINE_TAG=$ALPINE_TAG --build-arg LLVM_TAG=$LLVM_TAG \ 
+        --destination "$CI_REGISTRY_REPO:$CI_COMMIT_TAG" --destination "$CI_REGISTRY_REPO:latest"
 
-test-tag:version:
+test:version:
   stage: test
   rules:
     # run job if pushed a tag
@@ -68,27 +54,6 @@ test-tag:version:
         exit 1
       fi
       if ! clang-format --version | grep -qE "version $CI_COMMIT_TAG "; then
-        echo -e "${ERR_COL_CODE}Invalid clang-format version${OK_COL_CODE}"
-        exit 1
-      fi
-
-test-latest:version:
-  stage: test
-  rules:
-    # run job if pushed to default branch
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  tags:
-    - shared
-  image:
-    name: "$CI_REGISTRY_REPO:latest"
-    entrypoint: [""]
-  script:
-    - |-
-      if ! clang-format --version; then
-        echo -e "${ERR_COL_CODE}Error running clang-format${OK_COL_CODE}"
-        exit 1
-      fi
-      if ! clang-format --version | grep -qE "version [0-9]+\.[0-9]+\.[0-9]+ "; then
         echo -e "${ERR_COL_CODE}Invalid clang-format version${OK_COL_CODE}"
         exit 1
       fi

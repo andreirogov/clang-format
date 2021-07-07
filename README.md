@@ -1,5 +1,6 @@
 # clang-format
 
-Image of unibeautify (https://hub.docker.com/r/unibeautify/clang-format) rebuilt for the recent version of Clang-Format 9.0.0.
+[Clang-Format](https://clang.llvm.org/docs/ClangFormat.html) -- an automated code formatting tool.
 
-Clang-Format 9.0.0 introduces support for important macros definition alignment (AlignConsecutiveMacros).
+This image can be used either interactively or as part of a CI build.
+Image size has been optimized to speed up CI builds.
